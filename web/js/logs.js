@@ -27,16 +27,19 @@ const Logs = {
     this.populateSelect();
 
     const screen = document.getElementById('terminal-screen');
-    screen.innerHTML = `<span style="color:var(--text-muted);">Connexion au flux en direct de '${projectId}'...</span>\n`;
+    const connMsg = window.I18N ? I18N.t('terminal_connecting', { id: projectId }) : `Connexion au flux de '${projectId}'...`;
+    screen.innerHTML = `<span style="color:var(--text-muted);">${connMsg}</span>\n`;
 
     // Update status badge
     const p = App.projects.find(x => x.id === projectId);
     const statusTag = document.getElementById('terminal-process-status');
+    const runningLabel = window.I18N ? I18N.t('status_running') : 'En ligne';
+    const stoppedLabel = window.I18N ? I18N.t('status_stopped') : 'Arrêté';
     if (p && p.runtime && p.runtime.status === 'running') {
-      statusTag.textContent = `En ligne (${p.runtime.mode.toUpperCase()} - PID ${p.runtime.pid})`;
+      statusTag.textContent = `${runningLabel} (${p.runtime.mode.toUpperCase()} - PID ${p.runtime.pid})`;
       statusTag.className = 'tag framework';
     } else {
-      statusTag.textContent = 'Arrêté';
+      statusTag.textContent = stoppedLabel;
       statusTag.className = 'tag';
     }
 
@@ -73,7 +76,9 @@ const Logs = {
   toggleAutoScroll() {
     this.autoScroll = !this.autoScroll;
     const btn = document.getElementById('btn-autoscroll');
-    btn.textContent = `📜 Défilement auto: ${this.autoScroll ? 'ON' : 'OFF'}`;
+    const onTxt = window.I18N ? I18N.t('btn_autoscroll_on') : '📜 Défilement auto: ON';
+    const offTxt = window.I18N ? I18N.t('btn_autoscroll_off') : '📜 Défilement auto: OFF';
+    btn.textContent = this.autoScroll ? onTxt : offTxt;
     btn.style.color = this.autoScroll ? 'var(--accent-blue-bright)' : 'var(--text-muted)';
   },
 

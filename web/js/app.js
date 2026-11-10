@@ -1,12 +1,34 @@
-// App Core: Navigation, API Client, Toasts, ANSI Color Parser
+// App Core: Navigation, API Client, Toasts, ANSI Color Parser, Themes & i18n
 const App = {
   currentView: 'projects',
+  currentTheme: 'dark',
   projects: [],
 
   init() {
+    this.initTheme();
+    if (window.I18N) I18N.init();
     this.navigate('projects');
     this.loadStats();
     setInterval(() => this.loadStats(), 4000);
+  },
+
+  initTheme() {
+    const saved = localStorage.getItem('devdeck_theme') || 'dark';
+    this.setTheme(saved);
+  },
+
+  setTheme(theme) {
+    this.currentTheme = theme;
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('devdeck_theme', theme);
+    const sel = document.getElementById('theme-selector');
+    if (sel && sel.value !== theme) sel.value = theme;
+  },
+
+  setLanguage(lang) {
+    if (window.I18N) {
+      I18N.setLanguage(lang);
+    }
   },
 
   async api(endpoint, method = 'GET', body = null) {
@@ -37,17 +59,9 @@ const App = {
     const targetView = document.getElementById(`view-${viewName}`);
     if (targetView) targetView.classList.add('active');
 
-    const titles = {
-      projects: 'Tableau de bord Projets',
-      terminal: 'Terminal & Flux de Logs en Direct',
-      ports: 'Inspecteur des Ports & Conflits',
-      git: 'Gestionnaire Git & GitHub',
-      env: 'Variables d’Environnement (.env)',
-      docker: 'Services & Conteneurs Docker',
-      tools: 'Boîte à outils Développeur',
-      settings: 'Paramètres'
-    };
-    document.getElementById('current-view-title').textContent = titles[viewName] || 'DevDeck';
+    const titleKey = `title_${viewName}`;
+    const titleText = window.I18N ? I18N.t(titleKey) : viewName;
+    document.getElementById('current-view-title').textContent = titleText;
 
     // Trigger view-specific loads
     if (viewName === 'projects') Projects.loadProjects();
@@ -65,7 +79,8 @@ const App = {
     if (res.ok) {
       this.projects = res.data;
       const runningCount = this.projects.filter(p => p.runtime && p.runtime.status === 'running').length;
-      document.getElementById('stat-running-text').textContent = `${runningCount} en marche`;
+      const runningUnit = window.I18N ? I18N.t('stat_running') : 'actif';
+      document.getElementById('stat-running-text').textContent = `${runningCount} ${runningUnit}`;
       document.getElementById('badge-running-count').textContent = runningCount;
       document.getElementById('badge-projects-count').textContent = this.projects.length;
 
@@ -76,7 +91,8 @@ const App = {
     const portsRes = await this.api('/api/ports');
     if (portsRes.ok) {
       const portCount = portsRes.data.length;
-      document.getElementById('stat-ports-text').textContent = `${portCount} ports`;
+      const portsUnit = window.I18N ? I18N.t('stat_ports') : 'ports';
+      document.getElementById('stat-ports-text').textContent = `${portCount} ${portsUnit}`;
       document.getElementById('badge-ports-count').textContent = portCount;
     }
   },

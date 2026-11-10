@@ -29,9 +29,9 @@ const Projects = {
       container.innerHTML = `
         <div style="grid-column: 1 / -1; text-align: center; padding: 3rem; color: var(--text-muted);">
           <p style="font-size: 1.5rem; margin-bottom: 0.5rem;">📂</p>
-          <p>Aucun projet trouvé.</p>
+          <p>${I18N.t('no_projects')}</p>
           <button class="btn btn-sm btn-primary" style="margin-top: 1rem;" onclick="Projects.openScanModal()">
-            Scanner mon dossier utilisateur
+            ${I18N.t('scan_home_btn')}
           </button>
         </div>`;
       return;
@@ -41,7 +41,7 @@ const Projects = {
       const isRunning = p.runtime && p.runtime.status === 'running';
       const statusClass = isRunning ? 'running' : '';
       const dotColor = isRunning ? 'green' : (p.runtime && p.runtime.status === 'failed' ? 'red' : 'gray');
-      const statusText = isRunning ? `En ligne (${p.runtime.mode.toUpperCase()} - PID ${p.runtime.pid})` : 'Arrêté';
+      const statusText = isRunning ? `${I18N.t('status_running')} (${p.runtime.mode.toUpperCase()} - PID ${p.runtime.pid})` : I18N.t('status_stopped');
       const uptime = isRunning && p.runtime.uptime_seconds ? ` • ${Math.floor(p.runtime.uptime_seconds / 60)}m ${p.runtime.uptime_seconds % 60}s` : '';
 
       return `
@@ -55,10 +55,10 @@ const Projects = {
               <div class="project-path" title="${p.path}">${p.path}</div>
             </div>
             <div style="display: flex; gap: 0.25rem;">
-              <button class="btn btn-sm btn-icon" title="Ouvrir dans l'explorateur" onclick="Projects.openFolder('${p.path}')">📂</button>
-              <button class="btn btn-sm btn-icon" title="Ouvrir dans VS Code" onclick="Projects.openEditor('${p.path}')">💻</button>
-              <button class="btn btn-sm btn-icon" title="Modifier" onclick="Projects.openEditModal('${p.id}')">✏️</button>
-              <button class="btn btn-sm btn-icon" title="Supprimer" onclick="Projects.deleteProject('${p.id}')">🗑️</button>
+              <button class="btn btn-sm btn-icon" title="${I18N.t('btn_open_folder')}" onclick="Projects.openFolder('${p.path}')">📂</button>
+              <button class="btn btn-sm btn-icon" title="${I18N.t('btn_open_editor')}" onclick="Projects.openEditor('${p.path}')">💻</button>
+              <button class="btn btn-sm btn-icon" title="${I18N.t('btn_edit')}" onclick="Projects.openEditModal('${p.id}')">✏️</button>
+              <button class="btn btn-sm btn-icon" title="${I18N.t('btn_delete')}" onclick="Projects.deleteProject('${p.id}')">🗑️</button>
             </div>
           </div>
 
@@ -74,19 +74,19 @@ const Projects = {
               <span class="status-dot ${dotColor}"></span>
               <strong>${statusText}</strong>${uptime}
             </span>
-            ${isRunning && p.port ? `<a href="http://localhost:${p.port}" target="_blank" class="btn btn-sm" style="text-decoration:none;">Ouvrir :${p.port} ↗</a>` : ''}
+            ${isRunning && p.port ? `<a href="http://localhost:${p.port}" target="_blank" class="btn btn-sm" style="text-decoration:none;">${I18N.t('open_port', { port: p.port })}</a>` : ''}
           </div>
 
           <div class="project-actions">
             ${isRunning ? `
-              <button class="btn btn-sm btn-danger" onclick="Projects.stop('${p.id}')">🛑 Arrêter</button>
-              <button class="btn btn-sm" onclick="Projects.restart('${p.id}')">🔄 Redémarrer</button>
+              <button class="btn btn-sm btn-danger" onclick="Projects.stop('${p.id}')">${I18N.t('btn_stop')}</button>
+              <button class="btn btn-sm" onclick="Projects.restart('${p.id}')">${I18N.t('btn_restart')}</button>
             ` : `
-              ${p.dev_cmd ? `<button class="btn btn-sm btn-primary" onclick="Projects.start('${p.id}', 'dev')">⚡ Lancer Dev</button>` : ''}
-              ${p.prod_cmd ? `<button class="btn btn-sm btn-blue" onclick="Projects.start('${p.id}', 'prod')">🚀 Lancer Prod</button>` : ''}
-              ${p.test_cmd ? `<button class="btn btn-sm" onclick="Projects.start('${p.id}', 'test')">🧪 Tests</button>` : ''}
+              ${p.dev_cmd ? `<button class="btn btn-sm btn-primary" onclick="Projects.start('${p.id}', 'dev')">${I18N.t('btn_start_dev')}</button>` : ''}
+              ${p.prod_cmd ? `<button class="btn btn-sm btn-blue" onclick="Projects.start('${p.id}', 'prod')">${I18N.t('btn_start_prod')}</button>` : ''}
+              ${p.test_cmd ? `<button class="btn btn-sm" onclick="Projects.start('${p.id}', 'test')">${I18N.t('btn_test')}</button>` : ''}
             `}
-            <button class="btn btn-sm" style="margin-left: auto;" onclick="Projects.openTerminal('${p.id}')">📟 Logs</button>
+            <button class="btn btn-sm" style="margin-left: auto;" onclick="Projects.openTerminal('${p.id}')">${I18N.t('btn_logs')}</button>
           </div>
         </div>
       `;

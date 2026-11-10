@@ -1,5 +1,5 @@
-/* DevDeck Modern Dark Developer Aesthetic */
-:root {
+/* DevDeck Theme Palettes */
+:root, [data-theme="dark"] {
   --bg-primary: #0d1117;
   --bg-secondary: #161b22;
   --bg-tertiary: #21262d;
@@ -25,6 +25,73 @@
   --radius-md: 8px;
   --radius-lg: 12px;
   --shadow: 0 8px 24px rgba(0,0,0,0.5);
+}
+
+[data-theme="dracula"] {
+  --bg-primary: #1e1f29;
+  --bg-secondary: #282a36;
+  --bg-tertiary: #343746;
+  --bg-card: #282a36;
+  --bg-card-hover: #383a59;
+  --border-color: #44475a;
+  --border-accent: #bd93f9;
+  --text-primary: #f8f8f2;
+  --text-secondary: #a4a8c4;
+  --text-muted: #6272a4;
+  --accent-green: #50fa7b;
+  --accent-green-bright: #50fa7b;
+  --accent-blue: #6272a4;
+  --accent-blue-bright: #8be9fd;
+  --accent-purple: #bd93f9;
+  --accent-purple-bright: #ff79c6;
+  --accent-amber: #f1fa8c;
+  --accent-red: #ff5555;
+  --accent-red-bright: #ff6e6e;
+}
+
+[data-theme="midnight"] {
+  --bg-primary: #000000;
+  --bg-secondary: #0a0a0a;
+  --bg-tertiary: #141414;
+  --bg-card: #0a0a0a;
+  --bg-card-hover: #181818;
+  --border-color: #222222;
+  --border-accent: #0070f3;
+  --text-primary: #ffffff;
+  --text-secondary: #a0a0a0;
+  --text-muted: #555555;
+  --accent-green: #0070f3;
+  --accent-green-bright: #00df72;
+  --accent-blue: #0070f3;
+  --accent-blue-bright: #3291ff;
+  --accent-purple: #7928ca;
+  --accent-purple-bright: #f81ce5;
+  --accent-amber: #f5a623;
+  --accent-red: #e00;
+  --accent-red-bright: #ff0000;
+}
+
+[data-theme="light"] {
+  --bg-primary: #f6f8fa;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #eaeef2;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f3f4f6;
+  --border-color: #d0d7de;
+  --border-accent: #0969da;
+  --text-primary: #1f2328;
+  --text-secondary: #656d76;
+  --text-muted: #8c959f;
+  --accent-green: #1a7f37;
+  --accent-green-bright: #1f883d;
+  --accent-blue: #0969da;
+  --accent-blue-bright: #0550ae;
+  --accent-purple: #8250df;
+  --accent-purple-bright: #6639ba;
+  --accent-amber: #9a6700;
+  --accent-red: #cf222e;
+  --accent-red-bright: #a40e26;
+  --shadow: 0 8px 24px rgba(140, 149, 159, 0.2);
 }
 
 * {
