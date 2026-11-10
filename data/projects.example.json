@@ -1,0 +1,26 @@
+[
+  {
+    "id": "sample_webapp",
+    "name": "Sample Web App",
+    "path": "/home/user/projects/sample-webapp",
+    "stack": ["Node.js"],
+    "framework": "Next.js",
+    "pkg_manager": "npm",
+    "dev_cmd": "npm run dev",
+    "prod_cmd": "npm run build && npm run start",
+    "build_cmd": "npm run build",
+    "test_cmd": "npm test",
+    "custom_cmd": "",
+    "port": 3000,
+    "is_git": true,
+    "git_remote": "https://github.com/example/sample-webapp.git",
+    "git_branch": "main",
+    "has_docker": false,
+    "has_env": true,
+    "scripts": {
+      "dev": "next dev",
+      "build": "next build",
+      "start": "next start"
+    }
+  }
+]

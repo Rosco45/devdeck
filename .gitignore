@@ -1,0 +1,23 @@
+# DevDeck Local Data & Configurations (Confidential)
+data/*.json
+!data/projects.example.json
+data/*.bak
+data/*.tmp
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.venv/
+venv/
+env/
+
+# Operating System & Editors
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*~

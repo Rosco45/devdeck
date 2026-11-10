@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# DevDeck Application Launcher
+set -e
+
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+cd "$DIR"
+
+PORT=8888
+URL="http://127.0.0.1:${PORT}"
+
+# Open browser after a brief delay
+(
+  sleep 1.2
+  if which google-chrome >/dev/null 2>&1; then
+    google-chrome --app="$URL" >/dev/null 2>&1 &
+  elif which microsoft-edge >/dev/null 2>&1; then
+    microsoft-edge --app="$URL" >/dev/null 2>&1 &
+  elif which firefox >/dev/null 2>&1; then
+    firefox --new-window "$URL" >/dev/null 2>&1 &
+  elif which xdg-open >/dev/null 2>&1; then
+    xdg-open "$URL" >/dev/null 2>&1 &
+  fi
+) &
+
+echo "======================================================="
+echo "⚡  DevDeck — Cockpit Développeur"
+echo "    Démarrage sur : $URL"
+echo "======================================================="
+
+exec python3 "$DIR/app.py"

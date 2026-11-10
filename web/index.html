@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DevDeck — Cockpit Développeur</title>
+  <link rel="stylesheet" href="/css/devdeck.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>">
+</head>
+<body>
+
+  <!-- Sidebar -->
+  <aside id="sidebar">
+    <div class="brand">
+      <span class="logo-icon">⚡</span>
+      <h1>DevDeck</h1>
+      <span class="version-tag">v1.0</span>
+    </div>
+
+    <ul class="nav-links">
+      <li>
+        <button id="nav-projects" class="active" onclick="App.navigate('projects')">
+          <span>🚀</span> Projets
+          <span id="badge-projects-count" class="badge">0</span>
+        </button>
+      </li>
+      <li>
+        <button id="nav-terminal" onclick="App.navigate('terminal')">
+          <span>📟</span> Terminal & Logs
+          <span id="badge-running-count" class="badge">0</span>
+        </button>
+      </li>
+      <li>
+        <button id="nav-ports" onclick="App.navigate('ports')">
+          <span>🔌</span> Ports & Processus
+          <span id="badge-ports-count" class="badge">0</span>
+        </button>
+      </li>
+      <li>
+        <button id="nav-git" onclick="App.navigate('git')">
+          <span>🌿</span> Git & GitHub
+        </button>
+      </li>
+      <li>
+        <button id="nav-env" onclick="App.navigate('env')">
+          <span>🔐</span> Variables (.env)
+        </button>
+      </li>
+      <li>
+        <button id="nav-docker" onclick="App.navigate('docker')">
+          <span>🐳</span> Docker
+        </button>
+      </li>
+      <li>
+        <button id="nav-tools" onclick="App.navigate('tools')">
+          <span>🛠️</span> DevTools
+        </button>
+      </li>
+      <li>
+        <button id="nav-settings" onclick="App.navigate('settings')">
+          <span>⚙️</span> Réglages
+        </button>
+      </li>
+    </ul>
+
+    <div class="sidebar-footer">
+      <span>127.0.0.1:8888</span>
+      <span id="server-status" class="status-dot green" title="Serveur local en ligne"></span>
+    </div>
+  </aside>
+
+  <!-- Main Container -->
+  <main id="main">
+    <header class="topbar">
+      <div class="topbar-left">
+        <h2 id="current-view-title" class="topbar-title">Tableau de bord Projets</h2>
+        <div class="quick-stats">
+          <div class="stat-pill">
+            <span id="stat-dot" class="status-dot green"></span>
+            <span id="stat-running-text">0 actif</span>
+          </div>
+          <div class="stat-pill">
+            <span>🔌</span>
+            <span id="stat-ports-text">0 ports</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="topbar-actions">
+        <button class="btn btn-sm" onclick="Projects.openScanModal()">
+          <span>🔍</span> Scanner un dossier
+        </button>
+        <button class="btn btn-sm btn-primary" onclick="Projects.openAddModal()">
+          <span>➕</span> Nouveau projet
+        </button>
+      </div>
+    </header>
+
+    <!-- VIEW 1: PROJECTS -->
+    <section id="view-projects" class="view-container active">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+        <input type="text" id="project-search" class="form-control" placeholder="Rechercher un projet ou un framework..." style="max-width: 350px;" oninput="Projects.filter()">
+        <div style="display: flex; gap: 0.5rem;">
+          <select id="project-filter-stack" class="form-control" onchange="Projects.filter()" style="font-size: 0.85rem;">
+            <option value="">Toutes les stacks</option>
+            <option value="Next.js">Next.js</option>
+            <option value="Vite">Vite</option>
+            <option value="Node.js">Node.js</option>
+            <option value="Python">Python</option>
+            <option value="HTML/JS">HTML/JS</option>
+          </select>
+          <button class="btn btn-sm" onclick="Projects.loadProjects()" title="Rafraîchir">🔄</button>
+        </div>
+      </div>
+      <div id="projects-list" class="projects-grid"></div>
+    </section>
+
+    <!-- VIEW 2: TERMINAL & LOGS -->
+    <section id="view-terminal" class="view-container">
+      <div class="terminal-container">
+        <div class="terminal-header">
+          <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <label style="font-size: 0.85rem; color: var(--text-secondary);">Projet :</label>
+            <select id="terminal-project-select" class="form-control" style="font-size: 0.85rem; padding: 0.3rem 0.6rem;" onchange="Logs.switchProject(this.value)"></select>
+            <span id="terminal-process-status" class="tag">Arrêté</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <button class="btn btn-sm" onclick="Logs.toggleAutoScroll()" id="btn-autoscroll">📜 Défilement auto: ON</button>
+            <button class="btn btn-sm" onclick="Logs.restartCurrent()">🔄 Redémarrer</button>
+            <button class="btn btn-sm" onclick="Logs.clear()">🧹 Effacer</button>
+            <button class="btn btn-sm" onclick="Logs.copy()">📋 Copier</button>
+          </div>
+        </div>
+        <pre id="terminal-screen" class="terminal-screen">Sélectionnez un projet pour visualiser ses logs en direct...</pre>
+      </div>
+    </section>
+
+    <!-- VIEW 3: PORTS & PROCESSES -->
+    <section id="view-ports" class="view-container">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+        <div>
+          <h3>Inspecteur des Ports & Conflits</h3>
+          <p style="font-size: 0.85rem; color: var(--text-muted);">Visualisez les ports occupés en temps réel et débloquez les conflits <code>EADDRINUSE</code> en un clic.</p>
+        </div>
+        <button class="btn btn-sm btn-blue" onclick="Ports.scan()">🔄 Scanner les ports</button>
+      </div>
+
+      <div class="data-table-card">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Port</th>
+              <th>Processus</th>
+              <th>PID</th>
+              <th>Utilisateur</th>
+              <th>Description / Stack</th>
+              <th style="text-align: right;">Action</th>
+            </tr>
+          </thead>
+          <tbody id="ports-table-body">
+            <tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Chargement des ports...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- VIEW 4: GIT & GITHUB -->
+    <section id="view-git" class="view-container">
+      <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.25rem;">
+        <label style="font-size: 0.9rem; font-weight: 600;">Projet :</label>
+        <select id="git-project-select" class="form-control" style="max-width: 300px;" onchange="Git.loadInfo(this.value)"></select>
+        <button class="btn btn-sm" onclick="Git.refresh()">🔄 Actualiser</button>
+      </div>
+
+      <div id="git-content" style="display: flex; flex-direction: column; gap: 1.5rem;"></div>
+    </section>
+
+    <!-- VIEW 5: VARIABLES (.ENV) -->
+    <section id="view-env" class="view-container">
+      <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.25rem;">
+        <label style="font-size: 0.9rem; font-weight: 600;">Projet :</label>
+        <select id="env-project-select" class="form-control" style="max-width: 300px;" onchange="Env.loadEnv(this.value)"></select>
+        <select id="env-file-select" class="form-control" style="max-width: 180px;" onchange="Env.loadFile(this.value)"></select>
+        <button class="btn btn-sm btn-primary" onclick="Env.save()">💾 Enregistrer (.env)</button>
+        <button class="btn btn-sm" onclick="Env.addNewVar()">➕ Ajouter une variable</button>
+      </div>
+
+      <div id="env-editor-container" class="data-table-card" style="padding: 1.25rem;"></div>
+    </section>
+
+    <!-- VIEW 6: DOCKER -->
+    <section id="view-docker" class="view-container">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+        <div>
+          <h3>Conteneurs & Services Docker</h3>
+          <p style="font-size: 0.85rem; color: var(--text-muted);">Supervisez vos conteneurs et les bases de données locales (Postgres, Redis, Mongo).</p>
+        </div>
+        <button class="btn btn-sm btn-blue" onclick="Docker.loadContainers()">🔄 Rafraîchir</button>
+      </div>
+      <div class="data-table-card">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Nom</th>
+              <th>Image</th>
+              <th>Statut</th>
+              <th>Ports</th>
+            </tr>
+          </thead>
+          <tbody id="docker-table-body">
+            <tr><td colspan="4" style="text-align: center; color: var(--text-muted);">Chargement Docker...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- VIEW 7: DEVTOOLS -->
+    <section id="view-tools" class="view-container">
+      <div style="display: flex; gap: 1.5rem;">
+        <!-- Left: HTTP API Tester -->
+        <div style="flex: 1; display: flex; flex-direction: column; gap: 1rem;">
+          <div class="data-table-card" style="padding: 1.25rem;">
+            <h3 style="margin-bottom: 1rem;">⚡ Testeur d'API HTTP (REST Client)</h3>
+            <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem;">
+              <select id="tool-http-method" class="form-control" style="width: 110px; font-weight: bold;">
+                <option value="GET">GET</option>
+                <option value="POST">POST</option>
+                <option value="PUT">PUT</option>
+                <option value="PATCH">PATCH</option>
+                <option value="DELETE">DELETE</option>
+              </select>
+              <input type="text" id="tool-http-url" class="form-control" placeholder="http://localhost:3000/api/..." style="flex: 1;" value="http://localhost:3000">
+              <button class="btn btn-primary" onclick="Tools.sendHttp()">Envoyer</button>
+            </div>
+            <div class="form-group" style="margin-bottom: 0.75rem;">
+              <label>Corps de la requête (JSON facultatif) :</label>
+              <textarea id="tool-http-body" class="form-control" rows="3" style="font-family: var(--font-mono); font-size: 0.8rem;" placeholder='{"key": "value"}'></textarea>
+            </div>
+            <div id="tool-http-result" style="background: #05070a; border: 1px solid var(--border-color); border-radius: 6px; padding: 0.75rem; font-family: var(--font-mono); font-size: 0.8rem; max-height: 250px; overflow-y: auto;">
+              <span style="color: var(--text-muted);">Résultat de la requête affiché ici...</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: JWT & Generators -->
+        <div style="flex: 1; display: flex; flex-direction: column; gap: 1.5rem;">
+          <div class="data-table-card" style="padding: 1.25rem;">
+            <h3 style="margin-bottom: 0.75rem;">🔑 Décodeur JWT</h3>
+            <input type="text" id="tool-jwt-input" class="form-control" placeholder="Coller un token JWT (eyJhbGciOi...)" style="margin-bottom: 0.5rem;" oninput="Tools.decodeJwt(this.value)">
+            <pre id="tool-jwt-output" style="background: #05070a; border: 1px solid var(--border-color); border-radius: 6px; padding: 0.75rem; font-family: var(--font-mono); font-size: 0.75rem; max-height: 180px; overflow-y: auto; color: var(--accent-blue-bright);">En attente de token...</pre>
+          </div>
+
+          <div class="data-table-card" style="padding: 1.25rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+              <h3>🎲 Générateur de Secrets & UUID</h3>
+              <button class="btn btn-sm" onclick="Tools.generateTokens()">Générer nouveau</button>
+            </div>
+            <div id="tool-tokens-output" style="font-family: var(--font-mono); font-size: 0.8rem; display: flex; flex-direction: column; gap: 0.5rem;"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 8: SETTINGS -->
+    <section id="view-settings" class="view-container">
+      <div class="data-table-card" style="max-width: 600px; padding: 1.5rem; display: flex; flex-direction: column; gap: 1.25rem;">
+        <h3>Configuration de DevDeck</h3>
+        <div class="form-group">
+          <label>Port d'écoute du serveur :</label>
+          <input type="number" id="setting-port" class="form-control" value="8888">
+        </div>
+        <div class="form-group">
+          <label>Dossier de scan par défaut :</label>
+          <input type="text" id="setting-scan-dir" class="form-control" value="~">
+        </div>
+        <div class="form-group">
+          <label>GitHub Personal Access Token (optionnel pour PRs/Issues privées) :</label>
+          <input type="password" id="setting-github-token" class="form-control" placeholder="ghp_xxxxxxxxxxxx">
+        </div>
+        <div>
+          <button class="btn btn-primary" onclick="App.saveSettings()">Enregistrer les paramètres</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- MODAL: ADD / EDIT PROJECT -->
+  <div id="modal-project" class="modal-overlay">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="modal-project-title">Configurer un Projet</h3>
+        <button class="btn btn-sm" onclick="Projects.closeModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="proj-id">
+        <div class="form-group">
+          <label>Nom du projet :</label>
+          <input type="text" id="proj-name" class="form-control" placeholder="ex: Mon App">
+        </div>
+        <div class="form-group">
+          <label>Chemin absolu du dossier :</label>
+          <input type="text" id="proj-path" class="form-control" placeholder="/chemin/vers/mon-projet" onchange="Projects.inspectPath(this.value)">
+        </div>
+        <div style="display: flex; gap: 1rem;">
+          <div class="form-group" style="flex: 1;">
+            <label>Commande Dev :</label>
+            <input type="text" id="proj-dev-cmd" class="form-control" placeholder="npm run dev">
+          </div>
+          <div class="form-group" style="flex: 1;">
+            <label>Commande Prod locale :</label>
+            <input type="text" id="proj-prod-cmd" class="form-control" placeholder="npm run build && npm run start">
+          </div>
+        </div>
+        <div style="display: flex; gap: 1rem;">
+          <div class="form-group" style="flex: 1;">
+            <label>Commande Test :</label>
+            <input type="text" id="proj-test-cmd" class="form-control" placeholder="npm test">
+          </div>
+          <div class="form-group" style="width: 120px;">
+            <label>Port :</label>
+            <input type="number" id="proj-port" class="form-control" placeholder="3000">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="Projects.closeModal()">Annuler</button>
+        <button class="btn btn-primary" onclick="Projects.saveModal()">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: SCAN DIRECTORY -->
+  <div id="modal-scan" class="modal-overlay">
+    <div class="modal" style="max-width: 650px;">
+      <div class="modal-header">
+        <h3>Scanner un dossier de projets</h3>
+        <button class="btn btn-sm" onclick="Projects.closeScanModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div style="display: flex; gap: 0.5rem;">
+          <input type="text" id="scan-input-dir" class="form-control" style="flex: 1;" value="~">
+          <button class="btn btn-blue" onclick="Projects.executeScan()">Scanner</button>
+        </div>
+        <div id="scan-results" style="max-height: 350px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem;"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="Projects.closeScanModal()">Annuler</button>
+        <button class="btn btn-primary" onclick="Projects.importSelectedScanned()">Importer les sélectionnés</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: GIT COMMIT -->
+  <div id="modal-commit" class="modal-overlay">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>Nouveau Commit Git</h3>
+        <button class="btn btn-sm" onclick="Git.closeCommitModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Message du commit :</label>
+          <textarea id="git-commit-msg" class="form-control" rows="3" placeholder="feat: ajout d'une nouvelle fonctionnalité"></textarea>
+        </div>
+        <label style="font-size: 0.85rem; display: flex; align-items: center; gap: 0.4rem; cursor: pointer;">
+          <input type="checkbox" id="git-stage-all" checked> Inclure tous les fichiers modifiés (`git add -A`)
+        </label>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="Git.closeCommitModal()">Annuler</button>
+        <button class="btn btn-primary" onclick="Git.submitCommit()">Commiter</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast notifications -->
+  <div id="toasts"></div>
+
+  <!-- Scripts -->
+  <script src="/js/app.js"></script>
+  <script src="/js/projects.js"></script>
+  <script src="/js/logs.js"></script>
+  <script src="/js/ports.js"></script>
+  <script src="/js/git.js"></script>
+  <script src="/js/github.js"></script>
+  <script src="/js/env.js"></script>
+  <script src="/js/docker.js"></script>
+  <script src="/js/tools.js"></script>
+</body>
+</html>
