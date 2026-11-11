@@ -1,5 +1,9 @@
-// Developer Tools: HTTP Tester, JWT, UUID/Tokens, Hashes
+// Developer Tools: HTTP Tester, JWT, UUID/Tokens, Hashes, DB Ping & Config Generator
 const Tools = {
+  init() {
+    this.generateTokens();
+  },
+
   async sendHttp() {
     const method = document.getElementById('tool-http-method').value;
     const url = document.getElementById('tool-http-url').value.trim();
@@ -59,6 +63,7 @@ const Tools = {
 
   async generateTokens() {
     const out = document.getElementById('tool-tokens-output');
+    if (!out) return;
     const res = await App.api('/api/tools/tokens');
     if (res.ok) {
       const { uuid_v4, hex_secret, urlsafe_token } = res.data;
@@ -86,5 +91,56 @@ const Tools = {
         </div>
       `;
     }
+  },
+
+  // -------------------------------------------------------------------------
+  // Database Ping Tester
+  // -------------------------------------------------------------------------
+  async pingDb(dbType, port) {
+    const statusEl = document.getElementById(`db-status-${dbType}`);
+    if (statusEl) statusEl.textContent = 'Test en cours...';
+
+    const res = await App.api('/api/tools/db-ping', 'POST', {
+      host: '127.0.0.1',
+      port: port,
+      db_type: dbType
+    });
+
+    if (res.ok && res.data.ok) {
+      statusEl.innerHTML = `<span style="color:var(--accent-green-bright); font-weight:600;">🟢 En ligne (${res.data.latency_ms} ms)</span>`;
+      App.toast(`Base ${dbType.toUpperCase()} accessible en ${res.data.latency_ms} ms`, 'success');
+    } else {
+      statusEl.innerHTML = `<span style="color:var(--text-muted);">⚪ Inaccessible (: ${port})</span>`;
+      App.toast(`Base ${dbType.toUpperCase()} non connectée`, 'info');
+    }
+  },
+
+  // -------------------------------------------------------------------------
+  // Configuration File Generator
+  // -------------------------------------------------------------------------
+  async generateConfigFile() {
+    const configType = document.getElementById('gen-config-type').value;
+    const stack = document.getElementById('gen-config-stack').value;
+    const outBox = document.getElementById('gen-config-output');
+
+    outBox.textContent = 'Génération en cours...';
+    const res = await App.api('/api/tools/generate-config', 'POST', {
+      config_type: configType,
+      stack: stack
+    });
+
+    if (res.ok && res.data.content) {
+      outBox.textContent = res.data.content;
+      App.toast('Fichier de configuration généré !', 'success');
+    } else {
+      outBox.textContent = 'Erreur de génération.';
+    }
+  },
+
+  copyGeneratedConfig() {
+    const outBox = document.getElementById('gen-config-output');
+    navigator.clipboard.writeText(outBox.textContent).then(() => {
+      App.toast('Configuration copiée dans le presse-papiers !', 'success');
+    });
   }
 };

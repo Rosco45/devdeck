@@ -34,6 +34,19 @@ def is_port_in_use(port, host="127.0.0.1"):
         s.settimeout(0.3)
         return s.connect_ex((host, int(port))) == 0
 
+def get_network_info():
+    """Detects local LAN IP address and hostname for mobile testing."""
+    local_ip = "127.0.0.1"
+    hostname = socket.gethostname()
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        local_ip = s.getsockname()[0]
+        s.close()
+    except Exception:
+        pass
+    return {"local_ip": local_ip, "hostname": hostname}
+
 def get_process_cmdline(pid):
     try:
         with open(f"/proc/{pid}/cmdline", "rb") as f:

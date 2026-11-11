@@ -1,4 +1,4 @@
-// Projects Management Module
+// Projects Management Module with Metrics, Crash Diagnosis, Mobile QR & Tunnels
 const Projects = {
   projects: [],
   scannedProjects: [],
@@ -39,10 +39,14 @@ const Projects = {
 
     container.innerHTML = filtered.map(p => {
       const isRunning = p.runtime && p.runtime.status === 'running';
-      const statusClass = isRunning ? 'running' : '';
-      const dotColor = isRunning ? 'green' : (p.runtime && p.runtime.status === 'failed' ? 'red' : 'gray');
-      const statusText = isRunning ? `${I18N.t('status_running')} (${p.runtime.mode.toUpperCase()} - PID ${p.runtime.pid})` : I18N.t('status_stopped');
+      const isFailed = p.runtime && p.runtime.status === 'failed';
+      const isReady = p.runtime && p.runtime.ready;
+      const statusClass = isRunning ? 'running' : (isFailed ? 'failed' : '');
+      const dotColor = isRunning ? (isReady ? 'green' : 'amber') : (isFailed ? 'red' : 'gray');
+      const statusText = isRunning ? `${I18N.t('status_running')} (${p.runtime.mode.toUpperCase()} - PID ${p.runtime.pid})` : (isFailed ? I18N.t('status_failed') : I18N.t('status_stopped'));
       const uptime = isRunning && p.runtime.uptime_seconds ? ` • ${Math.floor(p.runtime.uptime_seconds / 60)}m ${p.runtime.uptime_seconds % 60}s` : '';
+      const diag = p.runtime && p.runtime.crash_diagnosis;
+      const tunnel = p.tunnel;
 
       return `
         <div class="project-card ${statusClass}" id="card-${p.id}">
@@ -67,20 +71,71 @@ const Projects = {
             ${(p.stack || []).map(s => `<span class="tag">${s}</span>`).join('')}
             ${p.port ? `<span class="tag port">Port :${p.port}</span>` : ''}
             ${p.is_git ? `<span class="tag git">Git (${p.git_branch || 'main'})</span>` : ''}
+            ${isRunning ? `
+              <span class="tag" style="background:var(--bg-tertiary); color:var(--text-secondary); border-color:#388bfd44;">
+                💾 ${p.runtime.ram_mb || 0} Mo • ⚡ ${p.runtime.cpu_percent || 0}% CPU
+              </span>
+            ` : ''}
+            ${isReady ? `
+              <span class="tag" style="background:#23863633; color:var(--accent-green-bright); border-color:#23863688;">
+                ✨ Prêt (${(p.runtime.ready_time_ms/1000).toFixed(1)}s)
+              </span>
+            ` : ''}
           </div>
 
+          <!-- Crash Diagnosis Alert Banner -->
+          ${isFailed && diag ? `
+            <div style="background:rgba(218,54,51,0.15); border:1px solid rgba(248,81,73,0.4); border-radius:6px; padding:0.6rem 0.8rem; font-size:0.8rem;">
+              <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                <div>
+                  <strong style="color:var(--accent-red-bright);">⚠️ ${diag.message}</strong>
+                  <div style="color:var(--text-secondary); margin-top:2px;">${diag.suggested_action}</div>
+                </div>
+                ${diag.fix_command ? `
+                  <button class="btn btn-sm btn-primary" onclick="Projects.fixCrash('${p.id}')" style="margin-left:0.5rem; font-size:0.75rem;">
+                    🛠️ Réparer
+                  </button>
+                ` : ''}
+              </div>
+            </div>
+          ` : ''}
+
+          <!-- Live Runtime & Network Sharing Info -->
           <div class="project-runtime-info">
             <span style="display: flex; align-items: center; gap: 0.4rem;">
               <span class="status-dot ${dotColor}"></span>
               <strong>${statusText}</strong>${uptime}
             </span>
-            ${isRunning && p.port ? `<a href="http://localhost:${p.port}" target="_blank" class="btn btn-sm" style="text-decoration:none;">${I18N.t('open_port', { port: p.port })}</a>` : ''}
+            <div style="display:flex; gap:0.4rem; align-items:center;">
+              ${isRunning && p.port ? `
+                <button class="btn btn-sm" onclick="Projects.openQR('${p.id}')" title="Tester sur mobile via Code QR">📱 Mobile</button>
+                <a href="http://localhost:${p.port}" target="_blank" class="btn btn-sm" style="text-decoration:none;">${I18N.t('open_port', { port: p.port })}</a>
+              ` : ''}
+            </div>
           </div>
 
+          <!-- Active Public Tunnel Display -->
+          ${tunnel && tunnel.status === 'online' ? `
+            <div style="background:rgba(88,166,255,0.12); border:1px solid rgba(88,166,255,0.3); border-radius:6px; padding:0.45rem 0.75rem; font-size:0.8rem; display:flex; align-items:center; justify-content:space-between;">
+              <div style="display:flex; align-items:center; gap:0.5rem; overflow:hidden;">
+                <span>🌐 Tunnel Démo :</span>
+                <a href="${tunnel.url}" target="_blank" style="color:var(--accent-blue-bright); font-family:var(--font-mono); font-weight:600; text-overflow:ellipsis; overflow:hidden; white-space:nowrap;">${tunnel.url}</a>
+              </div>
+              <div style="display:flex; gap:0.3rem;">
+                <button class="btn btn-sm" onclick="navigator.clipboard.writeText('${tunnel.url}'); App.toast('Lien public copié !', 'success')">📋 Copier</button>
+                <button class="btn btn-sm btn-danger" onclick="Projects.stopTunnel('${p.id}')">Fermer</button>
+              </div>
+            </div>
+          ` : ''}
+
+          <!-- Project Actions Toolbar -->
           <div class="project-actions">
             ${isRunning ? `
               <button class="btn btn-sm btn-danger" onclick="Projects.stop('${p.id}')">${I18N.t('btn_stop')}</button>
               <button class="btn btn-sm" onclick="Projects.restart('${p.id}')">${I18N.t('btn_restart')}</button>
+              ${p.port && (!tunnel || tunnel.status !== 'online') ? `
+                <button class="btn btn-sm btn-blue" onclick="Projects.startTunnel('${p.id}')" title="Générer une URL HTTPS publique temporaire">🌐 Tunnel Démo</button>
+              ` : ''}
             ` : `
               ${p.dev_cmd ? `<button class="btn btn-sm btn-primary" onclick="Projects.start('${p.id}', 'dev')">${I18N.t('btn_start_dev')}</button>` : ''}
               ${p.prod_cmd ? `<button class="btn btn-sm btn-blue" onclick="Projects.start('${p.id}', 'prod')">${I18N.t('btn_start_prod')}</button>` : ''}
@@ -91,6 +146,13 @@ const Projects = {
         </div>
       `;
     }).join('');
+  },
+
+  updateMetrics(projects) {
+    // Lightly refresh card metrics and statuses without disturbing form focus
+    this.projects = projects;
+    // Fast re-render
+    this.render();
   },
 
   filter() {
@@ -124,6 +186,57 @@ const Projects = {
       App.toast(`Serveur ${id} redémarré avec succès !`, 'success');
       this.loadProjects();
     }
+  },
+
+  async fixCrash(id) {
+    App.toast(`Application de la réparation automatique pour ${id}...`, 'info');
+    const res = await App.api(`/api/projects/${id}/fix`, 'POST', {});
+    if (res.ok && res.data.success) {
+      App.toast(`Réparation appliquée ! Relance du serveur...`, 'success');
+      this.start(id, 'dev');
+    } else {
+      App.toast(`Échec de réparation : ${res.data.output || res.data.error}`, 'error');
+    }
+  },
+
+  async startTunnel(id) {
+    App.toast(`Génération du tunnel public sécurisé pour ${id}...`, 'info');
+    const res = await App.api(`/api/projects/${id}/tunnel/start`, 'POST', {});
+    if (res.ok && res.data.success) {
+      App.toast(`Tunnel en ligne : ${res.data.url}`, 'success');
+      this.loadProjects();
+    } else {
+      App.toast(`Erreur tunnel : ${res.data.error || 'Vérifiez la connexion réseau'}`, 'error');
+    }
+  },
+
+  async stopTunnel(id) {
+    await App.api(`/api/projects/${id}/tunnel/stop`, 'POST', {});
+    App.toast('Tunnel fermé', 'info');
+    this.loadProjects();
+  },
+
+  openQR(id) {
+    const p = this.projects.find(x => x.id === id);
+    if (!p || !p.port) return;
+    const localIP = App.networkInfo.local_ip || '127.0.0.1';
+    const mobileUrl = `http://${localIP}:${p.port}`;
+
+    document.getElementById('qr-modal-title').textContent = `Test Mobile : ${p.name}`;
+    document.getElementById('qr-modal-url').textContent = mobileUrl;
+    document.getElementById('qr-modal-url').href = mobileUrl;
+
+    if (window.QRCodeGenerator) {
+      const qrDataUrl = QRCodeGenerator.generateSVG(mobileUrl, 220);
+      document.getElementById('qr-image-container').innerHTML = `
+        <img src="${qrDataUrl}" alt="QR Code" style="border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.4); background:#fff; padding:8px;">
+      `;
+    }
+    document.getElementById('modal-qr').classList.add('open');
+  },
+
+  closeQR() {
+    document.getElementById('modal-qr').classList.remove('open');
   },
 
   openTerminal(id) {
@@ -214,7 +327,6 @@ const Projects = {
     }
   },
 
-  // Scan Modal
   openScanModal() {
     document.getElementById('modal-scan').classList.add('open');
     this.executeScan();

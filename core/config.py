@@ -10,6 +10,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(BASE_DIR, "data")
 PROJECTS_FILE = os.path.join(DATA_DIR, "projects.json")
 SETTINGS_FILE = os.path.join(DATA_DIR, "settings.json")
+WORKSPACES_FILE = os.path.join(DATA_DIR, "workspaces.json")
 
 os.makedirs(DATA_DIR, exist_ok=True)
 
@@ -95,3 +96,32 @@ def delete_project(project_id):
     new_projects = [p for p in projects if p.get("id") != project_id]
     save_projects(new_projects)
     return len(new_projects) != len(projects)
+
+# ---------------------------------------------------------------------------
+# Workspaces (Project Groups)
+# ---------------------------------------------------------------------------
+def get_workspaces():
+    return safe_read_json(WORKSPACES_FILE, [])
+
+def save_workspaces(workspaces):
+    return safe_write_json(WORKSPACES_FILE, workspaces)
+
+def upsert_workspace(ws_data):
+    workspaces = get_workspaces()
+    wid = ws_data.get("id")
+    found = False
+    for i, w in enumerate(workspaces):
+        if w.get("id") == wid:
+            workspaces[i] = ws_data
+            found = True
+            break
+    if not found:
+        workspaces.append(ws_data)
+    save_workspaces(workspaces)
+    return ws_data
+
+def delete_workspace(ws_id):
+    workspaces = get_workspaces()
+    new_ws = [w for w in workspaces if w.get("id") != ws_id]
+    save_workspaces(new_ws)
+    return len(new_ws) != len(workspaces)

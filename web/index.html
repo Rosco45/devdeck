@@ -110,6 +110,7 @@
 
     <!-- VIEW 1: PROJECTS -->
     <section id="view-projects" class="view-container active">
+      <div id="workspaces-bar" style="margin-bottom: 1.25rem;"></div>
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
         <input type="text" id="project-search" class="form-control" placeholder="Rechercher un projet ou un framework..." style="max-width: 350px;" oninput="Projects.filter()">
         <div style="display: flex; gap: 0.5rem;">
@@ -269,6 +270,63 @@
             </div>
             <div id="tool-tokens-output" style="font-family: var(--font-mono); font-size: 0.8rem; display: flex; flex-direction: column; gap: 0.5rem;"></div>
           </div>
+
+          <!-- DB Ping Tester Card -->
+          <div class="data-table-card" style="padding: 1.25rem;">
+            <h3 style="margin-bottom: 0.75rem;">🗄️ Testeur de Bases de Données (Ping Express)</h3>
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.75rem;">Testez la connectivité immédiate à vos bases locales.</p>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem;">
+              <div style="background:var(--bg-primary); padding:0.5rem 0.75rem; border-radius:6px; border:1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                  <strong>PostgreSQL</strong> <span style="font-size:0.75rem; color:var(--text-muted); font-family:var(--font-mono);">:5432</span>
+                  <div id="db-status-postgres" style="font-size:0.75rem; color:var(--text-muted);">Non testé</div>
+                </div>
+                <button class="btn btn-sm" onclick="Tools.pingDb('postgres', 5432)">Test</button>
+              </div>
+              <div style="background:var(--bg-primary); padding:0.5rem 0.75rem; border-radius:6px; border:1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                  <strong>MySQL / Maria</strong> <span style="font-size:0.75rem; color:var(--text-muted); font-family:var(--font-mono);">:3306</span>
+                  <div id="db-status-mysql" style="font-size:0.75rem; color:var(--text-muted);">Non testé</div>
+                </div>
+                <button class="btn btn-sm" onclick="Tools.pingDb('mysql', 3306)">Test</button>
+              </div>
+              <div style="background:var(--bg-primary); padding:0.5rem 0.75rem; border-radius:6px; border:1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                  <strong>Redis</strong> <span style="font-size:0.75rem; color:var(--text-muted); font-family:var(--font-mono);">:6379</span>
+                  <div id="db-status-redis" style="font-size:0.75rem; color:var(--text-muted);">Non testé</div>
+                </div>
+                <button class="btn btn-sm" onclick="Tools.pingDb('redis', 6379)">Test</button>
+              </div>
+              <div style="background:var(--bg-primary); padding:0.5rem 0.75rem; border-radius:6px; border:1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                  <strong>MongoDB</strong> <span style="font-size:0.75rem; color:var(--text-muted); font-family:var(--font-mono);">:27017</span>
+                  <div id="db-status-mongo" style="font-size:0.75rem; color:var(--text-muted);">Non testé</div>
+                </div>
+                <button class="btn btn-sm" onclick="Tools.pingDb('mongo', 27017)">Test</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Configuration Generator Card -->
+          <div class="data-table-card" style="padding: 1.25rem;">
+            <h3 style="margin-bottom: 0.75rem;">⚙️ Générateur de Fichiers de Config</h3>
+            <div style="display: flex; gap: 0.5rem; margin-bottom: 0.6rem;">
+              <select id="gen-config-type" class="form-control" style="font-size: 0.85rem;">
+                <option value="gitignore">.gitignore optimisé</option>
+                <option value="dockerfile">Dockerfile multi-stage</option>
+                <option value="env_example">.env.example template</option>
+              </select>
+              <select id="gen-config-stack" class="form-control" style="font-size: 0.85rem;">
+                <option value="Node.js">Stack Node / Web</option>
+                <option value="Python">Stack Python</option>
+              </select>
+              <button class="btn btn-sm btn-primary" onclick="Tools.generateConfigFile()">Générer</button>
+            </div>
+            <div style="position:relative;">
+              <pre id="gen-config-output" style="background:#05070a; border:1px solid var(--border-color); border-radius:6px; padding:0.75rem; font-family:var(--font-mono); font-size:0.75rem; max-height:160px; overflow-y:auto; color:var(--text-primary);">Cliquez sur Générer...</pre>
+              <button class="btn btn-sm" onclick="Tools.copyGeneratedConfig()" style="position:absolute; right:6px; top:6px; font-size:0.7rem;">📋 Copier</button>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -385,11 +443,67 @@
     </div>
   </div>
 
+  <!-- MODAL: COMMAND PALETTE (Ctrl+K) -->
+  <div id="modal-palette" class="modal-overlay" style="align-items:flex-start; padding-top:10vh;">
+    <div class="modal" style="max-width: 600px; border-radius: 10px; box-shadow: 0 16px 40px rgba(0,0,0,0.6);">
+      <div style="padding: 0.85rem 1rem; border-bottom: 1px solid var(--border-color); display:flex; align-items:center; gap:0.6rem;">
+        <span style="font-size:1.1rem; color:var(--accent-blue-bright);">⚡</span>
+        <input type="text" id="palette-input" class="form-control" placeholder="Tapez une commande, un projet ou un thème..." style="flex:1; border:none; background:transparent; font-size:1rem; outline:none;" oninput="App.filterPalette(this.value)" onkeydown="if(event.key==='ArrowDown'){event.preventDefault();App.navigatePalette(1);}else if(event.key==='ArrowUp'){event.preventDefault();App.navigatePalette(-1);}else if(event.key==='Enter'){event.preventDefault();App.executePaletteSelection();}">
+        <span class="tag" style="font-family:var(--font-mono); font-size:0.7rem;">ESC</span>
+      </div>
+      <div id="palette-results" style="padding: 0.5rem; max-height: 380px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.25rem;"></div>
+    </div>
+  </div>
+
+  <!-- MODAL: MOBILE QR CODE -->
+  <div id="modal-qr" class="modal-overlay">
+    <div class="modal" style="max-width: 400px; text-align: center;">
+      <div class="modal-header">
+        <h3 id="qr-modal-title">Test Mobile</h3>
+        <button class="btn btn-sm" onclick="Projects.closeQR()">✕</button>
+      </div>
+      <div class="modal-body" style="align-items: center; gap: 1rem;">
+        <p style="font-size: 0.85rem; color: var(--text-secondary);">Scannez ce QR Code avec l'appareil photo de votre smartphone (sur le même réseau Wi-Fi) :</p>
+        <div id="qr-image-container" style="display:flex; justify-content:center;"></div>
+        <a id="qr-modal-url" href="#" target="_blank" style="font-family: var(--font-mono); font-size: 0.85rem; color: var(--accent-blue-bright); word-break: break-all;"></a>
+      </div>
+      <div class="modal-footer" style="justify-content: center;">
+        <button class="btn" onclick="Projects.closeQR()">Fermer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: WORKSPACE (PROJECT GROUP) -->
+  <div id="modal-workspace" class="modal-overlay">
+    <div class="modal" style="max-width: 520px;">
+      <div class="modal-header">
+        <h3>Créer un Groupe de Projets (Workspace)</h3>
+        <button class="btn btn-sm" onclick="Workspaces.closeModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Nom du groupe :</label>
+          <input type="text" id="ws-modal-name" class="form-control" placeholder="ex: E-commerce Fullstack (Front + API)">
+        </div>
+        <div class="form-group">
+          <label>Sélectionnez les projets à inclure :</label>
+          <div id="ws-modal-projects-list" style="max-height: 250px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.4rem;"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="Workspaces.closeModal()">Annuler</button>
+        <button class="btn btn-primary" onclick="Workspaces.saveModal()">Créer le groupe</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast notifications -->
   <div id="toasts"></div>
 
   <!-- Scripts -->
   <script src="/js/i18n.js"></script>
+  <script src="/js/qrcode.js"></script>
+  <script src="/js/workspaces.js"></script>
   <script src="/js/app.js"></script>
   <script src="/js/projects.js"></script>
   <script src="/js/logs.js"></script>

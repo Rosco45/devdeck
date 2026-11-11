@@ -122,3 +122,119 @@ def compute_hashes(text):
         "length_chars": len(text),
         "length_bytes": len(data)
     }
+
+# ---------------------------------------------------------------------------
+# Database Connectivity Ping Tester
+# ---------------------------------------------------------------------------
+def ping_database(host="127.0.0.1", port=5432, db_type="postgres", timeout=2.0):
+    import socket
+    t0 = time.time()
+    try:
+        with socket.create_connection((host, int(port)), timeout=timeout):
+            latency_ms = round((time.time() - t0) * 1000, 1)
+            return {
+                "ok": True,
+                "host": host,
+                "port": port,
+                "db_type": db_type,
+                "latency_ms": latency_ms,
+                "message": f"Connecté à {db_type.upper()} en {latency_ms} ms"
+            }
+    except ConnectionRefusedError:
+        return {
+            "ok": False,
+            "host": host,
+            "port": port,
+            "db_type": db_type,
+            "latency_ms": None,
+            "message": f"Connexion refusée sur le port {port} (service inactif)"
+        }
+    except Exception as e:
+        return {
+            "ok": False,
+            "host": host,
+            "port": port,
+            "db_type": db_type,
+            "latency_ms": None,
+            "message": str(e)
+        }
+
+# ---------------------------------------------------------------------------
+# Configuration File Generators (.gitignore, Dockerfile, .env.example)
+# ---------------------------------------------------------------------------
+def generate_config_file(config_type, stack="Node.js", existing_env_path=None):
+    if config_type == "gitignore":
+        if "Python" in stack:
+            return """# Python Gitignore
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+.env
+.env.local
+.pytest_cache/
+*.log
+.DS_Store
+"""
+        else:
+            return """# Node.js / Web Gitignore
+node_modules/
+.next/
+dist/
+build/
+.output/
+*.log
+.env
+.env.local
+.env.production
+.DS_Store
+Thumbs.db
+.vscode/
+"""
+    elif config_type == "dockerfile":
+        if "Python" in stack:
+            return """# Multi-stage Python Dockerfile
+FROM python:3.11-slim as base
+WORKDIR /app
+ENV PYTHONUNBUFFERED=1 \\
+    PYTHONDONTWRITEBYTECODE=1
+
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+EXPOSE 8000
+CMD ["python3", "app.py"]
+"""
+        else:
+            return """# Multi-stage Node.js Dockerfile
+FROM node:20-alpine AS base
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm ci
+
+COPY . .
+RUN npm run build || true
+
+EXPOSE 3000
+CMD ["npm", "start"]
+"""
+    elif config_type == "env_example" and existing_env_path and os.path.isfile(existing_env_path):
+        lines = []
+        with open(existing_env_path, "r", encoding="utf-8", errors="replace") as f:
+            for line in f:
+                stripped = line.strip()
+                if not stripped or stripped.startswith("#"):
+                    lines.append(line)
+                elif "=" in stripped:
+                    k, _ = stripped.split("=", 1)
+                    k = k.strip()
+                    lines.append(f"{k}=your_{k.lower()}_here\n")
+        return "".join(lines)
+    else:
+        return "# Sample Environment\nPORT=3000\nNODE_ENV=development\nSECRET_KEY=change_me_in_production\n"

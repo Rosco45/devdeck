@@ -26,6 +26,7 @@ from core import git_manager
 from core import github_manager
 from core import port_manager
 from core import tools_manager
+from core import tunnel_manager
 from core.process_manager import ProcessManager
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -98,14 +99,29 @@ class DevDeckHandler(BaseHTTPRequestHandler):
         if path == "/api/projects":
             projects = config.get_projects()
             statuses = ProcessManager.get_instance().get_all_statuses()
+            tunnels = tunnel_manager.TunnelManager.get_instance().get_all_tunnels()
             for p in projects:
                 pid = p.get("id")
                 p["runtime"] = statuses.get(pid, {
                     "status": "stopped",
                     "pid": None,
-                    "uptime_seconds": 0
+                    "uptime_seconds": 0,
+                    "ready": False,
+                    "ready_time_ms": None,
+                    "cpu_percent": 0.0,
+                    "ram_mb": 0.0,
+                    "crash_diagnosis": None
                 })
+                p["tunnel"] = tunnels.get(pid)
             self.send_json(projects)
+
+        elif path == "/api/workspaces":
+            workspaces = config.get_workspaces()
+            self.send_json(workspaces)
+
+        elif path == "/api/system/network-info":
+            net_info = port_manager.get_network_info()
+            self.send_json(net_info)
 
         elif path.startswith("/api/projects/scan"):
             scan_dir = query.get("path", [config.get_settings().get("default_scan_dir", os.path.expanduser("~"))])[0]
@@ -169,6 +185,109 @@ class DevDeckHandler(BaseHTTPRequestHandler):
         elif path == "/api/tools/tokens":
             tokens = tools_manager.generate_tokens()
             self.send_json(tokens)
+
+        elif path == "/api/workspaces":
+            if not body.get("name") or not body.get("project_ids"):
+                self.send_json({"error": "Name and project_ids are required"}, 400)
+                return
+            if not body.get("id"):
+                body["id"] = re.sub(r'[^a-zA-Z0-9_-]', '_', body["name"].lower())
+            saved = config.upsert_workspace(body)
+            self.send_json({"success": True, "workspace": saved})
+
+        elif re.match(r"^/api/workspaces/([^/]+)/start$", path):
+            wid = re.match(r"^/api/workspaces/([^/]+)/start$", path).group(1)
+            workspaces = config.get_workspaces()
+            target_ws = next((w for w in workspaces if w.get("id") == wid), None)
+            if not target_ws:
+                self.send_json({"error": "Workspace not found"}, 404)
+                return
+
+            def _start_ws():
+                for pid in target_ws.get("project_ids", []):
+                    p = config.get_project(pid)
+                    if p:
+                        ProcessManager.get_instance().start_project(p, mode="dev")
+                        time.sleep(0.8)
+
+            threading.Thread(target=_start_ws, daemon=True).start()
+            self.send_json({"success": True, "message": f"Démarrage du groupe {target_ws.get('name')} en cours..."})
+
+        elif re.match(r"^/api/workspaces/([^/]+)/stop$", path):
+            wid = re.match(r"^/api/workspaces/([^/]+)/stop$", path).group(1)
+            workspaces = config.get_workspaces()
+            target_ws = next((w for w in workspaces if w.get("id") == wid), None)
+            if not target_ws:
+                self.send_json({"error": "Workspace not found"}, 404)
+                return
+
+            for pid in target_ws.get("project_ids", []):
+                ProcessManager.get_instance().stop_project(pid)
+            self.send_json({"success": True, "message": f"Groupe {target_ws.get('name')} arrêté"})
+
+        elif re.match(r"^/api/projects/([^/]+)/tunnel/start$", path):
+            pid = re.match(r"^/api/projects/([^/]+)/tunnel/start$", path).group(1)
+            project = config.get_project(pid)
+            if not project or not project.get("port"):
+                self.send_json({"error": "Project or port not found"}, 400)
+                return
+            ok, url_or_err = tunnel_manager.TunnelManager.get_instance().start_tunnel(pid, project["port"])
+            self.send_json({"success": ok, "url": url_or_err if ok else None, "error": None if ok else url_or_err})
+
+        elif re.match(r"^/api/projects/([^/]+)/tunnel/stop$", path):
+            pid = re.match(r"^/api/projects/([^/]+)/tunnel/stop$", path).group(1)
+            ok, msg = tunnel_manager.TunnelManager.get_instance().stop_tunnel(pid)
+            self.send_json({"success": ok, "message": msg})
+
+        elif re.match(r"^/api/projects/([^/]+)/fix$", path):
+            pid = re.match(r"^/api/projects/([^/]+)/fix$", path).group(1)
+            project = config.get_project(pid)
+            if not project:
+                self.send_json({"error": "Project not found"}, 404)
+                return
+            proc = ProcessManager.get_instance().get_process(pid)
+            diag = proc.crash_diagnosis if proc else None
+            if not diag or not diag.get("fix_command"):
+                self.send_json({"error": "No fix command available"}, 400)
+                return
+
+            cmd = diag["fix_command"]
+            if cmd.startswith("kill_port"):
+                parts = cmd.split()
+                if len(parts) >= 2 and parts[1].isdigit():
+                    ok, msg = port_manager.kill_port(int(parts[1]), force=True)
+                    self.send_json({"success": ok, "output": msg})
+                    return
+
+            try:
+                res = subprocess.run(
+                    ["/bin/bash", "-c", cmd],
+                    cwd=project["path"],
+                    capture_output=True,
+                    text=True,
+                    timeout=30
+                )
+                self.send_json({
+                    "success": res.returncode == 0,
+                    "output": res.stdout or res.stderr
+                })
+            except Exception as e:
+                self.send_json({"success": False, "error": str(e)}, 500)
+
+        elif path == "/api/tools/db-ping":
+            host = body.get("host", "127.0.0.1")
+            port = body.get("port", 5432)
+            db_type = body.get("db_type", "postgres")
+            res = tools_manager.ping_database(host, port, db_type)
+            self.send_json(res)
+
+        elif path == "/api/tools/generate-config":
+            config_type = body.get("config_type", "gitignore")
+            stack = body.get("stack", "Node.js")
+            proj_path = body.get("path", "")
+            env_file = os.path.join(proj_path, ".env") if proj_path else None
+            content = tools_manager.generate_config_file(config_type, stack, env_file)
+            self.send_json({"success": True, "content": content})
 
         elif path == "/api/settings":
             self.send_json(config.get_settings())
@@ -288,6 +407,109 @@ class DevDeckHandler(BaseHTTPRequestHandler):
             res = tools_manager.compute_hashes(text)
             self.send_json(res)
 
+        elif path == "/api/workspaces":
+            if not body.get("name") or not body.get("project_ids"):
+                self.send_json({"error": "Name and project_ids are required"}, 400)
+                return
+            if not body.get("id"):
+                body["id"] = re.sub(r'[^a-zA-Z0-9_-]', '_', body["name"].lower())
+            saved = config.upsert_workspace(body)
+            self.send_json({"success": True, "workspace": saved})
+
+        elif re.match(r"^/api/workspaces/([^/]+)/start$", path):
+            wid = re.match(r"^/api/workspaces/([^/]+)/start$", path).group(1)
+            workspaces = config.get_workspaces()
+            target_ws = next((w for w in workspaces if w.get("id") == wid), None)
+            if not target_ws:
+                self.send_json({"error": "Workspace not found"}, 404)
+                return
+
+            def _start_ws():
+                for pid in target_ws.get("project_ids", []):
+                    p = config.get_project(pid)
+                    if p:
+                        ProcessManager.get_instance().start_project(p, mode="dev")
+                        time.sleep(0.8)
+
+            threading.Thread(target=_start_ws, daemon=True).start()
+            self.send_json({"success": True, "message": f"Démarrage du groupe {target_ws.get('name')} en cours..."})
+
+        elif re.match(r"^/api/workspaces/([^/]+)/stop$", path):
+            wid = re.match(r"^/api/workspaces/([^/]+)/stop$", path).group(1)
+            workspaces = config.get_workspaces()
+            target_ws = next((w for w in workspaces if w.get("id") == wid), None)
+            if not target_ws:
+                self.send_json({"error": "Workspace not found"}, 404)
+                return
+
+            for pid in target_ws.get("project_ids", []):
+                ProcessManager.get_instance().stop_project(pid)
+            self.send_json({"success": True, "message": f"Groupe {target_ws.get('name')} arrêté"})
+
+        elif re.match(r"^/api/projects/([^/]+)/tunnel/start$", path):
+            pid = re.match(r"^/api/projects/([^/]+)/tunnel/start$", path).group(1)
+            project = config.get_project(pid)
+            if not project or not project.get("port"):
+                self.send_json({"error": "Project or port not found"}, 400)
+                return
+            ok, url_or_err = tunnel_manager.TunnelManager.get_instance().start_tunnel(pid, project["port"])
+            self.send_json({"success": ok, "url": url_or_err if ok else None, "error": None if ok else url_or_err})
+
+        elif re.match(r"^/api/projects/([^/]+)/tunnel/stop$", path):
+            pid = re.match(r"^/api/projects/([^/]+)/tunnel/stop$", path).group(1)
+            ok, msg = tunnel_manager.TunnelManager.get_instance().stop_tunnel(pid)
+            self.send_json({"success": ok, "message": msg})
+
+        elif re.match(r"^/api/projects/([^/]+)/fix$", path):
+            pid = re.match(r"^/api/projects/([^/]+)/fix$", path).group(1)
+            project = config.get_project(pid)
+            if not project:
+                self.send_json({"error": "Project not found"}, 404)
+                return
+            proc = ProcessManager.get_instance().get_process(pid)
+            diag = proc.crash_diagnosis if proc else None
+            if not diag or not diag.get("fix_command"):
+                self.send_json({"error": "No fix command available"}, 400)
+                return
+
+            cmd = diag["fix_command"]
+            if cmd.startswith("kill_port"):
+                parts = cmd.split()
+                if len(parts) >= 2 and parts[1].isdigit():
+                    ok, msg = port_manager.kill_port(int(parts[1]), force=True)
+                    self.send_json({"success": ok, "output": msg})
+                    return
+
+            try:
+                res = subprocess.run(
+                    ["/bin/bash", "-c", cmd],
+                    cwd=project["path"],
+                    capture_output=True,
+                    text=True,
+                    timeout=30
+                )
+                self.send_json({
+                    "success": res.returncode == 0,
+                    "output": res.stdout or res.stderr
+                })
+            except Exception as e:
+                self.send_json({"success": False, "error": str(e)}, 500)
+
+        elif path == "/api/tools/db-ping":
+            host = body.get("host", "127.0.0.1")
+            port = body.get("port", 5432)
+            db_type = body.get("db_type", "postgres")
+            res = tools_manager.ping_database(host, port, db_type)
+            self.send_json(res)
+
+        elif path == "/api/tools/generate-config":
+            config_type = body.get("config_type", "gitignore")
+            stack = body.get("stack", "Node.js")
+            proj_path = body.get("path", "")
+            env_file = os.path.join(proj_path, ".env") if proj_path else None
+            content = tools_manager.generate_config_file(config_type, stack, env_file)
+            self.send_json({"success": True, "content": content})
+
         elif path == "/api/settings":
             updated = config.update_settings(body)
             self.send_json({"success": True, "settings": updated})
@@ -321,6 +543,13 @@ class DevDeckHandler(BaseHTTPRequestHandler):
             # Stop if running
             ProcessManager.get_instance().stop_project(pid)
             config.delete_project(pid)
+            self.send_json({"success": True})
+            return
+
+        m_ws = re.match(r"^/api/workspaces/([^/]+)$", path)
+        if m_ws:
+            wid = m_ws.group(1)
+            config.delete_workspace(wid)
             self.send_json({"success": True})
             return
 

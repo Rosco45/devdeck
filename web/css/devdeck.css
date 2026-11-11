@@ -678,6 +678,16 @@ table.data-table tr:hover td {
 .toast.error { border-left: 4px solid var(--accent-red-bright); }
 .toast.info { border-left: 4px solid var(--accent-blue-bright); }
 
+/* Palette item selection */
+.palette-item {
+  transition: all 0.15s ease;
+}
+.palette-item:hover, .palette-item.selected {
+  background-color: var(--bg-tertiary);
+  border-color: var(--border-accent) !important;
+  color: var(--accent-blue-bright);
+}
+
 @keyframes slideIn {
   from { transform: translateX(100%); opacity: 0; }
   to { transform: translateX(0); opacity: 1; }
